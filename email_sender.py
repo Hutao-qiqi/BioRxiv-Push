@@ -147,8 +147,9 @@ def send_email(subject, body_markdown, recipient=None):
         
         # 创建邮件对象
         msg = MIMEMultipart('alternative')
-        msg['From'] = Header("BioRxiv 肿瘤学研究机器人", 'utf-8')
-        msg['To'] = Header(recipient_email, 'utf-8')
+        # QQ邮箱要求 From 必须是实际的发件人邮箱地址
+        msg['From'] = f'BioRxiv <{sender_email}>'
+        msg['To'] = recipient_email
         msg['Subject'] = Header(subject, 'utf-8')
         
         # 添加纯文本版本（作为备用）
@@ -163,23 +164,34 @@ def send_email(subject, body_markdown, recipient=None):
         # 连接 SMTP 服务器并发送
         logger.info(f"正在连接 SMTP 服务器: {smtp_server}:{smtp_port}")
         
-        if smtp_port == 465:
-            # SSL 连接
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=30)
-        else:
-            # STARTTLS 连接
-            server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
-            server.starttls()
-        
-        logger.info("正在登录...")
-        server.login(sender_email, smtp_password)
-        
-        logger.info(f"正在发送邮件到: {recipient_email}")
-        server.sendmail(sender_email, [recipient_email], msg.as_string())
-        server.quit()
-        
-        logger.info(f"✅ 邮件发送成功到: {recipient_email}")
-        return True
+        server = None
+        try:
+            if smtp_port == 465:
+                # SSL 连接
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=30)
+            else:
+                # STARTTLS 连接
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+                server.ehlo()  # 识别身份
+                server.starttls()  # 启动 TLS
+                server.ehlo()  # 再次识别身份
+            
+            logger.info("正在登录...")
+            server.login(sender_email, smtp_password)
+            
+            logger.info(f"正在发送邮件到: {recipient_email}")
+            server.sendmail(sender_email, [recipient_email], msg.as_string())
+            
+            logger.info(f"✅ 邮件发送成功到: {recipient_email}")
+            return True
+            
+        finally:
+            # 确保连接关闭
+            if server:
+                try:
+                    server.quit()
+                except:
+                    pass
         
     except smtplib.SMTPException as e:
         logger.error(f"❌ SMTP 错误: {e}")

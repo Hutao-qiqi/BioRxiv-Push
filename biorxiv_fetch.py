@@ -51,12 +51,25 @@ def fetch_biorxiv_rss(category="cancer-biology", days=3):
                 published_str = entry.get('published', entry.get('updated', ''))
                 try:
                     # BioRxiv 时间格式: "Tue, 15 Oct 2024 00:00:00 GMT"
-                    published_dt = datetime.strptime(published_str, "%a, %d %b %Y %H:%M:%S %Z")
+                    from dateutil import parser
+                    import pytz
+                    
+                    # 使用 dateutil.parser 解析时间（自动处理时区）
+                    published_dt = parser.parse(published_str)
+                    
+                    # 如果没有时区信息，假设为 UTC
+                    if published_dt.tzinfo is None:
+                        published_dt = pytz.utc.localize(published_dt)
                 except:
-                    published_dt = datetime.now()
+                    # 解析失败，使用当前时间（带时区）
+                    import pytz
+                    published_dt = datetime.now(pytz.utc)
                 
                 # 只获取最近几天的文章
-                if (datetime.now() - published_dt).days > days:
+                import pytz
+                now_utc = datetime.now(pytz.utc)
+                time_diff = now_utc - published_dt
+                if time_diff.days > days:
                     continue
                 
                 all_articles.append({
@@ -162,7 +175,16 @@ def fetch_window(cfg, since_dt_local, now_local):
     filtered_articles = []
     for article in articles:
         pub_dt = article['published']
-        if since_dt_local <= pub_dt <= now_local:
+        
+        # 确保所有时间都有时区信息
+        if pub_dt.tzinfo is None:
+            import pytz
+            pub_dt = pytz.utc.localize(pub_dt)
+        
+        # 转换到本地时区进行比较
+        pub_dt_local = pub_dt.astimezone(since_dt_local.tzinfo)
+        
+        if since_dt_local <= pub_dt_local <= now_local:
             filtered_articles.append(article)
     
     # 按发布时间降序排序
