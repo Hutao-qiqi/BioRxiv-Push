@@ -11,6 +11,56 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def test_api_connection(api_key, model="moonshotai/Kimi-K2-Instruct-0905", timeout=30):
+    """
+    测试 SiliconFlow API 连接
+    
+    Args:
+        api_key: API 密钥
+        model: 模型名称
+        timeout: 超时时间（秒）
+        
+    Returns:
+        bool: 连接成功返回 True，失败返回 False
+    """
+    api_url = "https://api.siliconflow.cn/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    # 最小化测试负载
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": "测试"}],
+        "max_tokens": 10,
+        "temperature": 0.1
+    }
+    
+    try:
+        response = requests.post(api_url, json=payload, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        result = response.json()
+        
+        # 验证返回格式
+        if 'choices' in result and len(result['choices']) > 0:
+            logger.info("✅ API 连接测试成功")
+            return True
+        else:
+            logger.warning("⚠️ API 返回格式异常")
+            return False
+            
+    except requests.exceptions.Timeout:
+        logger.warning(f"⚠️ API 连接超时 ({timeout}s)")
+        return False
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"⚠️ API 连接失败: {e}")
+        return False
+    except Exception as e:
+        logger.warning(f"⚠️ API 测试异常: {e}")
+        return False
+
+
 PROMPT_TEMPLATE = """
 你是一位世界顶尖的生物医学研究专家，专注于肿瘤学（Oncology）、癌症生物学（Cancer Biology）和单细胞组学（Single-cell Omics）领域。
 
@@ -70,15 +120,20 @@ PROMPT_TEMPLATE = """
 
 ## 🔬 二、重点文章深度解析
 
+**【重要格式要求】**：
+1. ✅ **文章标题必须使用 # 一级标题**，确保醒目
+2. ✅ **关键数据、基因名、创新点必须加粗** (使用 **粗体**)
+3. ✅ **每篇文章之间用 --- 水平线明确分隔**
+4. ✅ **核心发现、关键数值、重要结论必须突出显示**
+
 请对**每篇文章**严格按照以下模板生成摘要：
 
 ---
+---
 
-### 📄 文章 [编号]
+# 📄 文章 [编号]：[完整文章标题]
 
 **【结构 A：文章元数据】**
-
-**标题**：[完整文章标题]
 
 **作者及单位**：[第一作者]（[单位]）、[通讯作者]（[单位]）
 
@@ -94,16 +149,16 @@ PROMPT_TEMPLATE = """
 > 当前肿瘤治疗/认知中存在什么核心问题？
 [基于原文的简洁描述]
 
-**2️⃣ 核心创新 (Novel Contribution)** [2句话，最重要]
+**2️⃣ 核心创新 (Novel Contribution)** [2句话，最重要] ⭐
 > 本文提出了什么新概念/新模型/新机制/新靶点？
-- **创新类型**：[新靶点/新模型/新机制/新策略]
-- **具体描述**：[详细说明创新点]
+- **创新类型**：**[新靶点/新模型/新机制/新策略]** ← 必须加粗
+- **具体描述**：[详细说明创新点，**关键词必须加粗**]
 
-**3️⃣ 关键发现 (Key Findings & Data)** [2-3句话，必须含数值]
+**3️⃣ 关键发现 (Key Findings & Data)** [2-3句话，必须含数值] ⭐⭐
 > 最重要的1-2个结果是什么？
-- **发现1**：[描述] + **数据**：[具体数值，如 P<0.001, 准确率92%]
-- **发现2**：[描述] + **数据**：[具体数值]
-- **关键机制**：[如果有，描述生物学机制]
+- **发现1**：[描述] + **数据**：**[具体数值，如 P<0.001, 准确率92%]** ← 数值必须加粗
+- **发现2**：[描述] + **数据**：**[具体数值]** ← 数值必须加粗
+- **关键机制**：[如果有，描述生物学机制，**关键基因/蛋白名必须加粗**]
 
 **4️⃣ 技术细节 (Methodology & Tech)** [1句话]
 > 使用了哪些高通量/AI/计算方法？
@@ -225,12 +280,17 @@ PROMPT_TEMPLATE = """
 **【严格要求】**：
 
 1. ✅ **禁止幻觉**：所有数据必须来自原文，不得编造
-2. ✅ **必须提取数值**：每篇文章至少1-2个关键数值
-3. ✅ **明确癌症类型**：必须指出具体癌种（如果原文涉及）
-4. ✅ **突出创新点**：用"新靶点/新模型/新机制"明确标注
+2. ✅ **必须提取数值**：每篇文章至少1-2个关键数值，**数值必须加粗**
+3. ✅ **明确癌症类型**：必须指出具体癌种，**癌种名称必须加粗**
+4. ✅ **突出创新点**：用"新靶点/新模型/新机制"明确标注，**必须加粗**
 5. ✅ **可操作性**：读者能立即判断是否需要深入阅读
-6. ✅ **使用专业术语**：NSCLC、scRNA-seq、TME、PDX等标准缩写
+6. ✅ **使用专业术语**：NSCLC、scRNA-seq、TME、PDX等标准缩写，**关键术语加粗**
 7. ✅ **结构化输出**：严格按照上述模板格式输出
+8. ✅ **排版要求**：
+   - 每篇文章标题使用 # 一级标题
+   - 文章之间用 `---` 分隔线明确分界
+   - 所有关键数据、基因名、创新点、数值用 **粗体**
+   - 癌症类型、分子靶点、技术平台名称用 **粗体**
 
 ---
 
@@ -305,6 +365,26 @@ def generate_summary_with_api(cfg, period_label, since_str, now_str, items_json)
         logger.info(f"正在调用 SiliconFlow API 生成摘要...")
         logger.info(f"使用模型: {model}")
         logger.info(f"处理文章数: {len(papers)}")
+        
+        # 先测试 API 连接（带重试）
+        logger.info("📡 测试 API 连接...")
+        api_connected = False
+        for test_attempt in range(1, 6):
+            logger.info(f"   尝试连接 API ({test_attempt}/5)...")
+            if test_api_connection(api_key, model, timeout=30):
+                api_connected = True
+                break
+            else:
+                if test_attempt < 5:
+                    import time
+                    wait_time = min(5 * test_attempt, 20)
+                    logger.warning(f"   等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+        
+        if not api_connected:
+            raise ConnectionError("❌ API 连接失败：已重试 5 次，无法连接到 SiliconFlow API")
+        
+        logger.info("✅ API 连接正常，开始生成摘要...")
 
         # 带重试的调用（处理长上下文超时）
         last_err = None
@@ -314,6 +394,14 @@ def generate_summary_with_api(cfg, period_label, since_str, now_str, items_json)
                 response.raise_for_status()
                 result = response.json()
                 summary = result['choices'][0]['message']['content'].strip()
+                # 在日志中打印模型输出（截断以防日志过长）
+                try:
+                    preview_len = 2000
+                    preview = summary[:preview_len]
+                    suffix = "\n…(已截断)" if len(summary) > preview_len else ""
+                    logger.info("LLM 输出预览（前 %d 字）：\n%s%s", preview_len, preview, suffix)
+                except Exception:
+                    pass
                 break
             except requests.exceptions.ReadTimeout as e:
                 last_err = e

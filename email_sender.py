@@ -42,9 +42,9 @@ def markdown_to_html(md_text):
         <meta charset="utf-8">
         <style>
             body {{
-                font-family: 'Segoe UI', Arial, sans-serif;
-                line-height: 1.6;
-                color: #333;
+                font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+                line-height: 1.7;
+                color: #2c3e50;
                 max-width: 900px;
                 margin: 0 auto;
                 padding: 20px;
@@ -52,48 +52,112 @@ def markdown_to_html(md_text):
             }}
             .container {{
                 background-color: white;
-                padding: 30px;
-                border-radius: 8px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             }}
             h1 {{
-                color: #2c3e50;
-                border-bottom: 3px solid #3498db;
-                padding-bottom: 10px;
+                color: #1a1a1a;
+                font-size: 1.8em;
+                font-weight: 900;
+                border-bottom: 4px solid #e74c3c;
+                padding-bottom: 15px;
+                margin-top: 40px;
+                margin-bottom: 20px;
+                background: linear-gradient(to right, #f8f9fa, white);
+                padding-left: 15px;
+                border-left: 6px solid #e74c3c;
             }}
             h2 {{
-                color: #34495e;
-                margin-top: 30px;
-                border-left: 4px solid #3498db;
+                color: #2c3e50;
+                font-size: 1.5em;
+                font-weight: 800;
+                margin-top: 35px;
+                margin-bottom: 15px;
+                border-left: 5px solid #3498db;
                 padding-left: 15px;
+                background-color: #f8f9fa;
+                padding-top: 10px;
+                padding-bottom: 10px;
             }}
             h3 {{
-                color: #7f8c8d;
+                color: #34495e;
+                font-weight: 700;
+                margin-top: 20px;
+            }}
+            strong, b {{
+                font-weight: 900;
+                color: #c0392b;
+                background-color: #fff3cd;
+                padding: 2px 4px;
+                border-radius: 2px;
             }}
             a {{
                 color: #3498db;
                 text-decoration: none;
+                font-weight: 600;
             }}
             a:hover {{
                 text-decoration: underline;
+                color: #2980b9;
             }}
             code {{
                 background-color: #f8f9fa;
                 padding: 2px 6px;
                 border-radius: 3px;
-                font-family: 'Courier New', monospace;
+                font-family: 'Courier New', 'Consolas', monospace;
+                color: #e74c3c;
+                font-weight: 600;
             }}
             pre {{
-                background-color: #f8f9fa;
-                padding: 15px;
-                border-radius: 5px;
+                background-color: #2c3e50;
+                color: #ecf0f1;
+                padding: 20px;
+                border-radius: 8px;
                 overflow-x: auto;
+                border-left: 5px solid #3498db;
             }}
             blockquote {{
-                border-left: 4px solid #e74c3c;
-                padding-left: 15px;
+                border-left: 5px solid #f39c12;
+                padding-left: 20px;
                 margin-left: 0;
-                color: #7f8c8d;
+                margin-right: 0;
+                padding: 15px 20px;
+                background-color: #fef5e7;
+                font-style: italic;
+                color: #555;
+            }}
+            hr {{
+                border: none;
+                border-top: 3px solid #3498db;
+                margin: 40px 0;
+                opacity: 0.5;
+            }}
+            ul, ol {{
+                margin-left: 20px;
+                line-height: 1.9;
+            }}
+            li {{
+                margin-bottom: 10px;
+            }}
+            p {{
+                margin-bottom: 15px;
+                line-height: 1.8;
+            }}
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin: 20px 0;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+            }}
+            th {{
+                background-color: #3498db;
+                color: white;
+                font-weight: 700;
             }}
             .footer {{
                 margin-top: 40px;
@@ -145,11 +209,24 @@ def send_email(subject, body_markdown, recipient=None):
             logger.error("邮件配置不完整，请检查环境变量")
             return False
         
+        # 支持多个收件人（逗号或分号分隔）
+        recipient_list = []
+        for email in recipient_email.replace(';', ',').split(','):
+            email = email.strip()
+            if email:
+                recipient_list.append(email)
+        
+        if not recipient_list:
+            logger.error("未找到有效的收件人邮箱")
+            return False
+        
+        logger.info(f"收件人列表: {', '.join(recipient_list)} (共 {len(recipient_list)} 个)")
+        
         # 创建邮件对象
         msg = MIMEMultipart('alternative')
         # QQ邮箱要求 From 必须是实际的发件人邮箱地址
         msg['From'] = f'BioRxiv <{sender_email}>'
-        msg['To'] = recipient_email
+        msg['To'] = ', '.join(recipient_list)  # 显示所有收件人
         msg['Subject'] = Header(subject, 'utf-8')
         
         # 添加纯文本版本（作为备用）
@@ -179,11 +256,25 @@ def send_email(subject, body_markdown, recipient=None):
             logger.info("正在登录...")
             server.login(sender_email, smtp_password)
             
-            logger.info(f"正在发送邮件到: {recipient_email}")
-            server.sendmail(sender_email, [recipient_email], msg.as_string())
+            logger.info(f"正在发送邮件到 {len(recipient_list)} 个收件人...")
             
-            logger.info(f"✅ 邮件发送成功到: {recipient_email}")
-            return True
+            # 发送到所有收件人
+            failed_recipients = []
+            for recipient in recipient_list:
+                try:
+                    server.sendmail(sender_email, [recipient], msg.as_string())
+                    logger.info(f"  ✅ 成功: {recipient}")
+                except Exception as e:
+                    logger.error(f"  ❌ 失败: {recipient} - {e}")
+                    failed_recipients.append(recipient)
+            
+            if failed_recipients:
+                logger.warning(f"⚠️ 部分邮件发送失败 ({len(failed_recipients)}/{len(recipient_list)}): {', '.join(failed_recipients)}")
+                # 只要有一个成功就返回 True
+                return len(failed_recipients) < len(recipient_list)
+            else:
+                logger.info(f"✅ 邮件发送成功到所有 {len(recipient_list)} 个收件人")
+                return True
             
         finally:
             # 确保连接关闭

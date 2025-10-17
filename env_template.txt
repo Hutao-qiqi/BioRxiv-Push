@@ -32,6 +32,9 @@ SMTP_SENDER_EMAIL=your_email@qq.com
 SMTP_PASSWORD=your_authorization_code_here
 
 # 收件人邮箱地址（接收研究简报的邮箱，可以和发件人相同）
+# 支持多个收件人，用逗号或分号分隔
+# 单个收件人：EMAIL_RECIPIENT=your_email@qq.com
+# 多个收件人：EMAIL_RECIPIENT=email1@qq.com,email2@whu.edu.cn,email3@163.com
 EMAIL_RECIPIENT=your_email@qq.com
 
 # ==================== 可选配置 ====================
