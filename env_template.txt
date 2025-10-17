@@ -1,0 +1,41 @@
+# BioRxiv 肿瘤学文章推送系统 - 环境变量配置模板
+# 使用说明: 复制此文件内容到 .env 文件并填写您的实际配置
+# 命令: cp env_template.txt .env (然后编辑 .env 文件)
+
+# ==================== SiliconFlow API 配置 ====================
+# DeepSeek V3.2 API 密钥（已填写您提供的密钥）
+SILICONFLOW_API_KEY=sk-zajrjxgcmrzkfybvzkcaiusavbpmdewuhojllktobprkabym
+
+# ==================== 邮件配置 (SMTP) ====================
+# SMTP 服务器地址
+# 常用服务器:
+#   - QQ邮箱: smtp.qq.com
+#   - 163邮箱: smtp.163.com
+#   - Gmail: smtp.gmail.com
+#   - Outlook: smtp.office365.com
+SMTP_SERVER=smtp.qq.com
+
+# SMTP 端口
+#   - 587: STARTTLS (推荐)
+#   - 465: SSL
+SMTP_PORT=587
+
+# 发件人邮箱地址（请修改为您的邮箱）
+SMTP_SENDER_EMAIL=your_email@qq.com
+
+# 邮箱授权码（不是登录密码！）
+# 如何获取 QQ 邮箱授权码：
+#   1. 登录 QQ 邮箱网页版
+#   2. 设置 -> 账户 -> POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV服务
+#   3. 开启 IMAP/SMTP 服务
+#   4. 生成授权码（保存好，只显示一次）
+SMTP_PASSWORD=your_authorization_code_here
+
+# 收件人邮箱地址（接收研究简报的邮箱，可以和发件人相同）
+EMAIL_RECIPIENT=your_email@qq.com
+
+# ==================== 可选配置 ====================
+# 如果服务器需要通过代理访问外网，可以取消注释并配置
+# HTTP_PROXY=http://proxy.example.com:8080
+# HTTPS_PROXY=http://proxy.example.com:8080
+
