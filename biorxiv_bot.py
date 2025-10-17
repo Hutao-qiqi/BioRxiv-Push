@@ -20,6 +20,7 @@ import logging
 
 from utils import now_in_tz, last_window_start, fmt_period
 from biorxiv_fetch import fetch_window, pack_papers
+from pubmed_fetch import fetch_pubmed_articles
 from summarizer_api import run_ollama
 from state import PeriodState
 from email_sender import send_digest_email, send_error_notification
@@ -86,8 +87,24 @@ async def generate_and_send_digest(period_label: str, manual=False):
         
         # 获取文章
         logger.info("📥 正在从 BioRxiv 获取文章...")
-        articles = fetch_window(CFG, since_local, now_local)
-        data = pack_papers(CFG, articles)
+        biorxiv_articles = fetch_window(CFG, since_local, now_local)
+        biorxiv_data = pack_papers(CFG, biorxiv_articles)
+        
+        logger.info(f"✅ BioRxiv: {len(biorxiv_data)} 篇文章")
+        
+        # 获取 PubMed 文章（Nature/Science/Cell等）
+        logger.info("📥 正在从 PubMed 获取顶级期刊文章...")
+        try:
+            pubmed_articles = fetch_pubmed_articles(CFG, days=3)
+            pubmed_data = pack_papers(CFG, pubmed_articles)
+            logger.info(f"✅ PubMed: {len(pubmed_data)} 篇文章")
+        except Exception as e:
+            logger.warning(f"⚠️ PubMed 获取失败: {e}")
+            pubmed_data = []
+        
+        # 合并数据
+        data = biorxiv_data + pubmed_data
+        logger.info(f"📊 合并后总计: {len(data)} 篇文章")
         
         BOT_STATUS["last_fetch"] = now_local
         BOT_STATUS["total_papers"] += len(data)
