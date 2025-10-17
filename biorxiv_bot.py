@@ -126,7 +126,7 @@ async def generate_and_send_digest(period_label: str, manual=False):
         
         # 使用 AI 生成摘要
         logger.info("🤖 正在使用 AI 生成研究简报...")
-        logger.info(f"   使用模型: DeepSeek-V3.2-Exp")
+
         
         summary_md = run_ollama(
             CFG,

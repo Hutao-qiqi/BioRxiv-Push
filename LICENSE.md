@@ -4,7 +4,7 @@ Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
 知识共享署名-非商业性使用 4.0 国际许可协议
 https://creativecommons.org/licenses/by-nc/4.0/
 
-© 2025 Steven ZN
+© 2025 Liu Shuye (liushuye@whu.edu.cn)
 
 ---
 
@@ -24,11 +24,11 @@ NonCommercial / 非商业性使用 — You may not use the material for commerci
 
 ### Citation Notice / 引用声明
 
-If you use arXivPush in academic publications, please cite as follows:
-如果您在学术论文或项目中使用了 arXivPush，请引用如下：
+If you use BioRxiv-Push in academic publications, please cite as follows:
+如果您在学术论文或项目中使用了 BioRxiv-Push，请引用如下：
 
-Steven ZN. arXivPush: An Automated Research Paper Digest and Dialogue System on Discord. 2025.
-https://github.com/Steven-ZN/arXivPush
+Liu Shuye. BioRxiv-Push: Automated Oncology Paper Digest and Email Delivery. 2025.
+https://github.com/Hutao-qiqi/BioRxiv-Push
 
 ---
 

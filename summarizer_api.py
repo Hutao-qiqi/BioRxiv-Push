@@ -258,7 +258,13 @@ def generate_summary_with_api(cfg, period_label, since_str, now_str, items_json)
         raise ValueError("未设置 SILICONFLOW_API_KEY 环境变量")
     
     api_url = "https://api.siliconflow.cn/v1/chat/completions"
-    model = "deepseek-ai/DeepSeek-V3.2-Exp"
+    # 允许通过 config.yaml 覆盖模型与参数
+    llm_cfg = cfg.get("llm", {}) if isinstance(cfg, dict) else {}
+    model = llm_cfg.get("model", "moonshotai/Kimi-K2-Instruct-0905")
+    max_tokens = int(llm_cfg.get("max_tokens", 256000))
+    temperature = float(llm_cfg.get("temperature", 0.8))
+    top_p = float(llm_cfg.get("top_p", 0.95))
+    timeout_seconds = int(llm_cfg.get("timeout_seconds", 300))
     
     # 解析文章数据
     papers = json.loads(items_json)
@@ -290,21 +296,38 @@ def generate_summary_with_api(cfg, period_label, since_str, now_str, items_json)
                 "content": prompt
             }
         ],
-        "temperature": 0.8,  # 提高温度以获得更有创造性的分析
-        "max_tokens": 16000,  # 大幅增加token限制以支持深度分析
-        "top_p": 0.95,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "top_p": top_p,
     }
     
     try:
         logger.info(f"正在调用 SiliconFlow API 生成摘要...")
         logger.info(f"使用模型: {model}")
         logger.info(f"处理文章数: {len(papers)}")
-        
-        response = requests.post(api_url, json=payload, headers=headers, timeout=120)
-        response.raise_for_status()
-        
-        result = response.json()
-        summary = result['choices'][0]['message']['content'].strip()
+
+        # 带重试的调用（处理长上下文超时）
+        last_err = None
+        for attempt in range(1, 6):
+            try:
+                response = requests.post(api_url, json=payload, headers=headers, timeout=timeout_seconds)
+                response.raise_for_status()
+                result = response.json()
+                summary = result['choices'][0]['message']['content'].strip()
+                break
+            except requests.exceptions.ReadTimeout as e:
+                last_err = e
+                logger.warning(f"第 {attempt}/5 次调用超时（{timeout_seconds}s），将退避重试...")
+                import time
+                time.sleep(min(8 * attempt, 30))
+            except requests.exceptions.RequestException as e:
+                last_err = e
+                logger.warning(f"第 {attempt}/5 次调用失败：{e}，将退避重试...")
+                import time
+                time.sleep(min(8 * attempt, 30))
+        else:
+            # 全部重试失败
+            raise last_err if last_err else RuntimeError("LLM 请求失败")
         
         logger.info(f"摘要生成成功，长度: {len(summary)} 字符")
         
