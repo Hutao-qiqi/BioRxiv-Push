@@ -222,67 +222,68 @@ def send_email(subject, body_markdown, recipient=None):
         
         logger.info(f"收件人列表: {', '.join(recipient_list)} (共 {len(recipient_list)} 个)")
         
-        # 创建邮件对象
-        msg = MIMEMultipart('alternative')
-        # QQ邮箱要求 From 必须是实际的发件人邮箱地址
-        msg['From'] = f'BioRxiv <{sender_email}>'
-        msg['To'] = ', '.join(recipient_list)  # 显示所有收件人
-        msg['Subject'] = Header(subject, 'utf-8')
-        
-        # 添加纯文本版本（作为备用）
-        text_part = MIMEText(body_markdown, 'plain', 'utf-8')
-        msg.attach(text_part)
-        
-        # 添加 HTML 版本
+        # 预生成 HTML（所有收件人共用）
         html_body = markdown_to_html(body_markdown)
-        html_part = MIMEText(html_body, 'html', 'utf-8')
-        msg.attach(html_part)
         
-        # 连接 SMTP 服务器并发送
-        logger.info(f"正在连接 SMTP 服务器: {smtp_server}:{smtp_port}")
+        logger.info(f"正在发送邮件到 {len(recipient_list)} 个收件人...")
         
-        server = None
-        try:
-            if smtp_port == 465:
-                # SSL 连接
-                server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=30)
-            else:
-                # STARTTLS 连接
-                server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
-                server.ehlo()  # 识别身份
-                server.starttls()  # 启动 TLS
-                server.ehlo()  # 再次识别身份
-            
-            logger.info("正在登录...")
-            server.login(sender_email, smtp_password)
-            
-            logger.info(f"正在发送邮件到 {len(recipient_list)} 个收件人...")
-            
-            # 发送到所有收件人
-            failed_recipients = []
-            for recipient in recipient_list:
-                try:
-                    server.sendmail(sender_email, [recipient], msg.as_string())
-                    logger.info(f"  ✅ 成功: {recipient}")
-                except Exception as e:
-                    logger.error(f"  ❌ 失败: {recipient} - {e}")
-                    failed_recipients.append(recipient)
-            
-            if failed_recipients:
-                logger.warning(f"⚠️ 部分邮件发送失败 ({len(failed_recipients)}/{len(recipient_list)}): {', '.join(failed_recipients)}")
-                # 只要有一个成功就返回 True
-                return len(failed_recipients) < len(recipient_list)
-            else:
-                logger.info(f"✅ 邮件发送成功到所有 {len(recipient_list)} 个收件人")
-                return True
-            
-        finally:
-            # 确保连接关闭
-            if server:
-                try:
-                    server.quit()
-                except:
-                    pass
+        # 为每个收件人单独建立连接和发送（避免同一会话中的响应混淆）
+        failed_recipients = []
+        
+        for idx, recipient in enumerate(recipient_list, 1):
+            server = None
+            try:
+                logger.info(f"  [{idx}/{len(recipient_list)}] 正在发送到: {recipient}")
+                
+                # 为每个收件人创建独立的邮件对象
+                msg = MIMEMultipart('alternative')
+                msg['From'] = f'BioRxiv <{sender_email}>'
+                msg['To'] = recipient
+                msg['Subject'] = Header(subject, 'utf-8')
+                
+                # 添加纯文本版本（作为备用）
+                text_part = MIMEText(body_markdown, 'plain', 'utf-8')
+                msg.attach(text_part)
+                
+                # 添加 HTML 版本
+                html_part = MIMEText(html_body, 'html', 'utf-8')
+                msg.attach(html_part)
+                
+                # 建立独立的 SMTP 连接
+                if smtp_port == 465:
+                    server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=30)
+                else:
+                    server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                
+                # 登录并发送
+                server.login(sender_email, smtp_password)
+                server.sendmail(sender_email, [recipient], msg.as_string())
+                server.quit()
+                
+                logger.info(f"      ✅ 成功")
+                
+            except Exception as e:
+                logger.error(f"      ❌ 失败: {e}")
+                failed_recipients.append(recipient)
+            finally:
+                # 确保连接关闭
+                if server:
+                    try:
+                        server.quit()
+                    except:
+                        pass
+        
+        # 汇总结果
+        if failed_recipients:
+            logger.warning(f"⚠️ 部分邮件发送失败 ({len(failed_recipients)}/{len(recipient_list)}): {', '.join(failed_recipients)}")
+            # 只要有一个成功就返回 True
+            return len(failed_recipients) < len(recipient_list)
+        else:
+            logger.info(f"✅ 邮件发送成功到所有 {len(recipient_list)} 个收件人")
+            return True
         
     except smtplib.SMTPException as e:
         logger.error(f"❌ SMTP 错误: {e}")
