@@ -25,27 +25,33 @@ from summarizer_api import run_ollama
 from state import PeriodState
 from email_sender import send_digest_email, send_error_notification
 
+# 获取脚本所在目录
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # 设置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('biorxiv_push.log', encoding='utf-8'),
+        logging.FileHandler(os.path.join(SCRIPT_DIR, 'biorxiv_push.log'), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-# 加载环境变量
-load_dotenv()
+# 加载环境变量（使用绝对路径）
+env_path = os.path.join(SCRIPT_DIR, '.env')
+load_dotenv(dotenv_path=env_path)
+logger.info(f"从 {env_path} 加载环境变量")
 
 # 加载配置
+config_path = os.path.join(SCRIPT_DIR, "config.yaml")
 try:
-    with open("config.yaml", "r", encoding="utf-8") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         CFG = yaml.safe_load(f)
-    logger.info("✅ 配置文件加载成功")
+    logger.info(f"✅ 配置文件加载成功: {config_path}")
 except FileNotFoundError:
-    logger.error("❌ 未找到 config.yaml 文件，请先创建配置文件")
+    logger.error(f"❌ 未找到配置文件: {config_path}")
     exit(1)
 
 TZNAME = CFG.get("timezone", "Asia/Shanghai")
